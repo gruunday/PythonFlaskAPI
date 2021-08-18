@@ -1,5 +1,7 @@
 FROM python:3.9
 
+LABEL org.opencontainers.image.authors="gruunday@gmail.com"
+
 ENV FLASK_APP app.py
 
 COPY requirements.txt ./
