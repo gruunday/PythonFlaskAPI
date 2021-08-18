@@ -1,0 +1,14 @@
+gunicorn:
+  bind: '0.0.0.0:5005'
+  workers: 1
+  accesslog: '-'
+  loglevel: 'debug'
+  capture_output: True
+  enable_stdio_inheritance: True
+api:
+  example_key: 'w8iqHcy4p1a9xlQL4dQZkxA7Qo8EmcWFretixnvSPzm1iF2wUh'
+app:
+  secret_key: WfQ2mha43Pfzwu1qYu3k4eBaKVDMV6dA9cD54cef
+traefik:
+  letsencrypt:
+    email: user@example.com

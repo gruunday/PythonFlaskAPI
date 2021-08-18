@@ -1,0 +1,55 @@
+version: '3'
+services:
+  example_app:
+    container_name: example_app
+    restart: always
+    build: .
+    networks:
+      - web
+    labels:
+      - "traefik.http.routers.example.rule=Host(`app.internal`)"
+      - "traefik.http.routers.example.entrypoints=web"
+      - "traefik.http.routers.example.service=example"
+      - "traefik.http.services.example.loadbalancer.server.port=5005"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.example.tls=false"
+
+  example_traefik:
+    container_name: "example_traefik"
+    image: "traefik:latest"
+    restart: always
+    command:
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=true"
+      - "--api.dashboard=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web" 
+      - "--certificatesresolvers.myresolver.acme.caserver=https://acme-v01.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.myresolver.acme.email=thomas.doyle9@mail.dcu.ie"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - web
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      # Dashboard
+      - "traefik.http.routers.traefik.rule=Host(`traefik.internal`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.entrypoints=web"
+      - "traefik.http.routers.traefik.tls=false"
+      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+            
+      # global redirect to https
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+
+networks:
+  web:
+    external: true

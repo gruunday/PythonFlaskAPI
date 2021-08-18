@@ -1,0 +1,63 @@
+#!/bin/bash
+
+#
+# Configure script
+#
+
+
+#
+# Parse config.yml
+#
+
+parse_yaml() {
+   local prefix=$2
+   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+   sed -ne "s|^\($s\)\($w\)$s:$s\"\(.*\)\"$s\$|\1$fs\2$fs\3|p" \
+        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
+   awk -F$fs '{
+      indent = length($1)/2;
+      vname[indent] = $2;
+      for (i in vname) {if (i > indent) {delete vname[i]}}
+      if (length($3) > 0) {
+         vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+         printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+      }
+   }'
+}
+
+if [[ ! -d "src/config" ]]; then
+  mkdir src/config 
+fi
+
+#
+# Generate gunicorn.cnf
+#
+
+eval $(parse_yaml config.yml "config_")
+
+echo "bind = $config_gunicorn_bind" > src/config/gunicorn-cfg.py
+echo "workers = $config_gunicorn_workers" >> src/config/gunicorn-cfg.py
+echo "accesslog = $config_gunicorn_accesslog" >> src/config/gunicorn-cfg.py
+echo "loglevel = $config_gunicorn_loglevel" >> src/config/gunicorn-cfg.py
+echo "capture_output = $config_gunicorn_capture_output" >> src/config/gunicorn-cfg.py
+echo "enable_stdio_inheritance = $config_gunicorn_enable_stdio_inheritance" >> src/config/gunicorn-cfg.py
+
+#
+# Generate api.keys
+#
+
+printf "{\n  $config_api_example_key : \"example_key\"\n}" > src/api.keys
+
+#
+# Generate config.ini
+#
+
+cp .config/config.ini src/config/config.ini
+sed -i "s/secret_key = /secret_key = ${config_app_secret_key}/" src/config/config.ini
+
+
+#
+# Generate traefik config
+#
+
+sed -i -e "s/- \"--certificatesresolvers.myresolver.acme.email=.*\"/- \"--certificatesresolvers.myresolver.acme.email=${config_traefik_letsencrypt_email}\"/" docker-compose-traefik.yml
